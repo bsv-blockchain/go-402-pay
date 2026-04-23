@@ -81,6 +81,9 @@ func setupWallet(ctx context.Context) (*wallet.Wallet, func(), error) {
 func main() {
 	ctx := context.Background()
 
+	// Enable debug logging so payment validation steps are visible.
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})))
+
 	fmt.Println("Initializing real wallet with SQLite storage and ARC broadcaster...")
 	realWallet, cleanup, err := setupWallet(ctx)
 	if err != nil {

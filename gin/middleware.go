@@ -135,5 +135,7 @@ func PaymentFromContext(c *gin.Context) (*pay402.PaymentResult, int, bool) {
 func send402Gin(c *gin.Context, serverIdentityKey string, sats int) {
 	c.Header(pay402.HeaderSats, strconv.Itoa(sats))
 	c.Header(pay402.HeaderServer, serverIdentityKey)
+	c.Header("Access-Control-Allow-Origin", "*")
+	c.Header("Access-Control-Expose-Headers", pay402.HeaderSats+","+pay402.HeaderServer)
 	c.AbortWithStatus(http.StatusPaymentRequired)
 }

@@ -114,6 +114,14 @@ func TestSend402_ServerHeader(t *testing.T) {
 	assert.Equal(t, "my-identity-key", w.Header().Get(HeaderServer))
 }
 
+func TestSend402_CORSHeaders(t *testing.T) {
+	w := httptest.NewRecorder()
+	Send402(w, "server-key", 100)
+	assert.Equal(t, "*", w.Header().Get("Access-Control-Allow-Origin"))
+	assert.Contains(t, w.Header().Get("Access-Control-Expose-Headers"), HeaderSats)
+	assert.Contains(t, w.Header().Get("Access-Control-Expose-Headers"), HeaderServer)
+}
+
 // ---------------------------------------------------------------------------
 // ValidatePaymentFromHeaders — nil returns (missing / malformed)
 // ---------------------------------------------------------------------------
