@@ -114,6 +114,14 @@ func TestSend402_ServerHeader(t *testing.T) {
 	assert.Equal(t, "my-identity-key", w.Header().Get(HeaderServer))
 }
 
+func TestSend402_CORSHeaders(t *testing.T) {
+	w := httptest.NewRecorder()
+	Send402(w, "server-key", 100)
+	assert.Equal(t, "*", w.Header().Get("Access-Control-Allow-Origin"))
+	assert.Contains(t, w.Header().Get("Access-Control-Expose-Headers"), HeaderSats)
+	assert.Contains(t, w.Header().Get("Access-Control-Expose-Headers"), HeaderServer)
+}
+
 // ---------------------------------------------------------------------------
 // ValidatePaymentFromHeaders — nil returns (missing / malformed)
 // ---------------------------------------------------------------------------
@@ -311,7 +319,7 @@ func TestValidatePayment_InternalizeCalledWithCorrectVout(t *testing.T) {
 	assert.Equal(t, uint32(0), capturedVout)
 }
 
-func TestValidatePayment_DerivationSuffixIsUTF8TimeBytes(t *testing.T) {
+func TestValidatePayment_DerivationSuffixIsRawTime(t *testing.T) {
 	w := makeWallet(t)
 	var capturedSuffix []byte
 	w.OnInternalizeAction().
@@ -323,7 +331,7 @@ func TestValidatePayment_DerivationSuffixIsUTF8TimeBytes(t *testing.T) {
 	beefB64, _ := makeBEEF(t, 100)
 	h := validHeaders(beefB64)
 	_, _ = ValidatePaymentFromHeaders(context.Background(), h, "/test", w, 100, 0)
-	// derivationSuffix must be the raw UTF-8 bytes of the time string
+	// derivationSuffix must be the raw time string bytes
 	assert.Equal(t, []byte(h.Time), capturedSuffix)
 }
 

@@ -9,6 +9,7 @@ When a client requests a paid endpoint, the server responds with HTTP 402 and th
 | Package | Import path | Framework |
 |---------|-------------|-----------|
 | `pay402` | `github.com/bsv-blockchain/go-402-pay` | `net/http` |
+| `pay402chi` | `github.com/bsv-blockchain/go-402-pay/chi` | [Chi](https://go-chi.io) |
 | `pay402fiber` | `github.com/bsv-blockchain/go-402-pay/fiber` | [Fiber](https://gofiber.io) |
 | `pay402gin` | `github.com/bsv-blockchain/go-402-pay/gin` | [Gin](https://gin-gonic.com) |
 | `pay402echo` | `github.com/bsv-blockchain/go-402-pay/echo` | [Echo](https://echo.labstack.com) |
@@ -46,9 +47,27 @@ func articleHandler(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-## Server usage (Fiber / Gin / Echo)
+## Server usage (Chi / Fiber / Gin / Echo)
 
 Each sub-package exposes the same `PaymentMiddleware` + `PaymentFromContext` API adapted to its framework.
+
+**Chi**
+
+```go
+import pay402chi "github.com/bsv-blockchain/go-402-pay/chi"
+
+r := chi.NewRouter()
+r.Use(pay402chi.PaymentMiddleware(pay402chi.Options{
+    Wallet:         myWallet,
+    CalculatePrice: func(path string) int { return 100 },
+}))
+
+r.Get("/paid", func(w http.ResponseWriter, req *http.Request) {
+    result, price, ok := pay402chi.PaymentFromContext(req.Context())
+    _ = result; _ = price; _ = ok
+    w.Write([]byte("paid content"))
+})
+```
 
 **Fiber**
 
@@ -76,6 +95,12 @@ r.Use(pay402gin.PaymentMiddleware(pay402gin.Options{
     Wallet:         myWallet,
     CalculatePrice: func(path string) int { return 100 },
 }))
+
+r.GET("/paid", func(c *gin.Context) {
+    result, price, ok := pay402gin.PaymentFromContext(c)
+    _ = result; _ = price; _ = ok
+    c.String(http.StatusOK, "paid content")
+})
 ```
 
 **Echo**
@@ -87,6 +112,12 @@ e.Use(pay402echo.PaymentMiddleware(pay402echo.Options{
     Wallet:         myWallet,
     CalculatePrice: func(path string) int { return 100 },
 }))
+
+e.GET("/paid", func(c echo.Context) error {
+    result, price, ok := pay402echo.PaymentFromContext(c)
+    _ = result; _ = price; _ = ok
+    return c.String(http.StatusOK, "paid content")
+})
 ```
 
 ## Client usage
