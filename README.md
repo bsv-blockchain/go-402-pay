@@ -1,3 +1,5 @@
+> ⚠️ **This repository is being archived.** Development has moved to the [go-stack monorepo](https://github.com/bsv-blockchain/go-stack). Open issues will be migrated there. This repository will be archived in the coming days — please open new issues and PRs in the monorepo going forward.
+
 # go-402-pay
 
 Go port of [`@bsv/402-pay`](https://github.com/bsv-blockchain/ts-402-pay) — server middleware and client helpers implementing [BRC-121 Simple 402 Payments](https://brc.dev/121) for BSV micropayments over HTTP. The Chrome extension [`402-extension`](https://github.com/bsv-blockchain/402-extension) provides browser-level automation of the same protocol.
