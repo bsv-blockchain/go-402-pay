@@ -42,9 +42,14 @@ type PaymentHeaders struct {
 
 // Send402 writes a 402 Payment Required response carrying the required satoshi
 // amount and the server identity key.
+//
+// CORS headers are included so that browser JavaScript clients (e.g. create402Fetch)
+// can read the x-bsv-* headers from cross-origin responses.
 func Send402(w http.ResponseWriter, serverIdentityKey string, sats int) {
 	w.Header().Set(HeaderSats, strconv.Itoa(sats))
 	w.Header().Set(HeaderServer, serverIdentityKey)
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Expose-Headers", HeaderSats+","+HeaderServer)
 	w.WriteHeader(http.StatusPaymentRequired)
 }
 
@@ -63,33 +68,52 @@ func ValidatePaymentFromHeaders(
 	requiredSats int,
 	paymentWindowMs int,
 ) (*PaymentResult, error) {
+	log := slog.Default()
+
 	if paymentWindowMs <= 0 {
 		paymentWindowMs = DefaultPaymentWindowMs
 	}
 
 	if h.Sender == "" || h.Beef == "" || h.Nonce == "" || h.Time == "" || h.Vout == "" {
+		log.DebugContext(ctx, "payment: missing headers",
+			"path", requestPath,
+			"has_sender", h.Sender != "",
+			"has_beef", h.Beef != "",
+			"has_nonce", h.Nonce != "",
+			"has_time", h.Time != "",
+			"has_vout", h.Vout != "",
+		)
 		return nil, nil
 	}
 
 	// Validate timestamp freshness
 	timestamp, err := strconv.ParseInt(h.Time, 10, 64)
 	if err != nil {
+		log.DebugContext(ctx, "payment: invalid timestamp", "path", requestPath, "time", h.Time, "err", err)
 		return nil, nil
 	}
 	nowMs := time.Now().UnixMilli()
-	if math.Abs(float64(nowMs-timestamp)) > float64(paymentWindowMs) {
+	deltaMs := math.Abs(float64(nowMs - timestamp))
+	if deltaMs > float64(paymentWindowMs) {
+		log.DebugContext(ctx, "payment: stale timestamp",
+			"path", requestPath,
+			"delta_ms", deltaMs,
+			"window_ms", paymentWindowMs,
+		)
 		return nil, nil
 	}
 
 	// Decode BEEF
 	beefBytes, err := base64.StdEncoding.DecodeString(h.Beef)
 	if err != nil {
+		log.DebugContext(ctx, "payment: beef base64 decode failed", "path", requestPath, "err", err)
 		return nil, nil
 	}
 
 	// Parse BEEF and extract the payment transaction
 	_, tx, txHash, err := transaction.ParseBeef(beefBytes)
 	if err != nil || tx == nil {
+		log.DebugContext(ctx, "payment: beef parse failed", "path", requestPath, "err", err)
 		return nil, nil
 	}
 	txid := txHash.String()
@@ -97,28 +121,48 @@ func ValidatePaymentFromHeaders(
 	// Verify the specified output carries at least the required satoshi amount
 	voutIndex, err := strconv.ParseUint(h.Vout, 10, 32)
 	if err != nil {
+		log.DebugContext(ctx, "payment: invalid vout", "path", requestPath, "vout", h.Vout, "err", err)
 		return nil, nil
 	}
 	if int(voutIndex) >= len(tx.Outputs) {
+		log.DebugContext(ctx, "payment: vout out of range",
+			"path", requestPath,
+			"vout", voutIndex,
+			"num_outputs", len(tx.Outputs),
+		)
 		return nil, nil
 	}
 	output := tx.Outputs[voutIndex]
 	if output.Satoshis < uint64(requiredSats) {
+		log.DebugContext(ctx, "payment: insufficient sats",
+			"path", requestPath,
+			"paid", output.Satoshis,
+			"required", requiredSats,
+		)
 		return nil, nil
 	}
 
 	// Decode the sender identity key to pass to InternalizeAction
 	senderKey, err := ec.PublicKeyFromString(h.Sender)
 	if err != nil {
+		log.DebugContext(ctx, "payment: invalid sender key", "path", requestPath, "sender", h.Sender, "err", err)
 		return nil, nil
 	}
 
-	// derivationSuffix = base64(utf8(timeStr)) — matches the TypeScript implementation
 	derivationSuffix := []byte(h.Time)
 	derivationPrefix, err := base64.StdEncoding.DecodeString(h.Nonce)
 	if err != nil {
+		log.DebugContext(ctx, "payment: nonce base64 decode failed", "path", requestPath, "err", err)
 		return nil, nil
 	}
+
+	log.DebugContext(ctx, "payment: calling InternalizeAction",
+		"path", requestPath,
+		"txid", txid,
+		"vout", voutIndex,
+		"sats", output.Satoshis,
+		"sender", h.Sender,
+	)
 
 	result, err := w.InternalizeAction(ctx, wallet.InternalizeActionArgs{
 		Tx:          beefBytes,
@@ -136,6 +180,7 @@ func ValidatePaymentFromHeaders(
 		},
 	}, "")
 	if err != nil {
+		log.ErrorContext(ctx, "payment: InternalizeAction failed", "path", requestPath, "txid", txid, "err", err)
 		return nil, nil
 	}
 
