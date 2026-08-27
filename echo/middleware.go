@@ -136,5 +136,7 @@ func PaymentFromContext(c echo.Context) (*pay402.PaymentResult, int, bool) {
 func send402Echo(c echo.Context, serverIdentityKey string, sats int) {
 	c.Response().Header().Set(pay402.HeaderSats, strconv.Itoa(sats))
 	c.Response().Header().Set(pay402.HeaderServer, serverIdentityKey)
+	c.Response().Header().Set("Access-Control-Allow-Origin", "*")
+	c.Response().Header().Set("Access-Control-Expose-Headers", pay402.HeaderSats+","+pay402.HeaderServer)
 	c.Response().WriteHeader(http.StatusPaymentRequired)
 }

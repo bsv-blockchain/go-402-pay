@@ -128,5 +128,7 @@ func PaymentFromContext(c *fiber.Ctx) (*pay402.PaymentResult, int, bool) {
 func send402Fiber(c *fiber.Ctx, serverIdentityKey string, sats int) {
 	c.Set(pay402.HeaderSats, strconv.Itoa(sats))
 	c.Set(pay402.HeaderServer, serverIdentityKey)
+	c.Set("Access-Control-Allow-Origin", "*")
+	c.Set("Access-Control-Expose-Headers", pay402.HeaderSats+","+pay402.HeaderServer)
 	c.Status(fiber.StatusPaymentRequired)
 }
