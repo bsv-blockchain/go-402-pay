@@ -114,7 +114,8 @@ func ValidatePaymentFromHeaders(
 	}
 
 	// derivationSuffix = base64(utf8(timeStr)) — matches the TypeScript implementation
-	derivationSuffix := []byte(h.Time)
+	timeB64 := base64.StdEncoding.EncodeToString([]byte(h.Time))
+	derivationSuffix := []byte(timeB64)
 	derivationPrefix, err := base64.StdEncoding.DecodeString(h.Nonce)
 	if err != nil {
 		return nil, nil
